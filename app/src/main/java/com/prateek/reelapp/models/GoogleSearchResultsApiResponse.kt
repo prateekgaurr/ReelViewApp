@@ -268,7 +268,7 @@ data class GoogleSearchResultsApiResponse(
 
     data class ShortVideo(
         @SerializedName("clip")
-        val clip: String, // https://encrypted-vtbn0.gstatic.com/video?q=tbn:ANd9GcQZi6SeDmPhnm4A1wwHdKOOR4HyJ2UNqcoX7A
+        val clip: String?, // https://encrypted-vtbn0.gstatic.com/video?q=tbn:ANd9GcQZi6SeDmPhnm4A1wwHdKOOR4HyJ2UNqcoX7A
         @SerializedName("extensions")
         val extensions: List<String>,
         @SerializedName("link")
