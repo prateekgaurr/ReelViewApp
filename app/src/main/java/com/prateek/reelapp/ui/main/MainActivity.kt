@@ -2,37 +2,47 @@ package com.prateek.reelapp.ui.main
 
 import android.os.Bundle
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.MediaSource
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.viewpager2.widget.ViewPager2
 import com.prateek.reelapp.R
+import com.prateek.reelapp.data.room.VideosDao
 import com.prateek.reelapp.databinding.ActivityMainBinding
 import com.prateek.reelapp.models.GoogleSearchResultsApiResponse
+import com.prateek.reelapp.models.SavedVideo
 import com.prateek.reelapp.ui.BaseActivity
 import com.prateek.reelapp.util.ExoplayerManager
 import com.prateek.reelapp.util.FetchData
 import com.prateek.reelapp.util.alert
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlin.math.abs
 
 @AndroidEntryPoint
-class MainActivity : BaseActivity(), ReelInterface {
+class MainActivity : BaseActivity(), ReelInteractionInterface{
 
     private val viewModel : MainViewModel by viewModels()
     private lateinit var binding : ActivityMainBinding
-    @Inject lateinit var adapter : ReelsAdapter
-    private var lastPlayingMedia = 0
+    private lateinit var mediaList : List<String>
+    @Inject lateinit var videosDao: VideosDao
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         ExoplayerManager.initializeExoPlayer(this)
-
-        binding.viewPager.apply {
-            adapter = this@MainActivity.adapter
+        binding.mainPlayerView.apply {
+            controllerAutoShow = false
+            player = ExoplayerManager.player
         }
 
         viewModel.videosLiveData.observe(this){
@@ -55,30 +65,14 @@ class MainActivity : BaseActivity(), ReelInterface {
 
         viewModel.fetchVideosFromApi()
 
+        binding.mainPlayerView.setOnTouchListener(ReelInteractionDetector(this))
+
     }
 
     private fun onApiResponse(shortVideos: List<GoogleSearchResultsApiResponse.ShortVideo>) {
-        adapter.updateList(shortVideos.filter { !it.clip.isNullOrEmpty() })
-        ExoplayerManager.setMedia(shortVideos.filter { !it.clip.isNullOrEmpty() }.map { it.clip!! })
-
-        val cb = object : ViewPager2.OnPageChangeCallback(){
-            override fun onPageSelected(position: Int) {
-                super.onPageSelected(position)
-
-                if(position > lastPlayingMedia){
-                    ExoplayerManager.getExoPlayerInstance()?.seekToNextMediaItem()
-                    ExoplayerManager.getExoPlayerInstance()?.play()
-                }else {
-                    ExoplayerManager.getExoPlayerInstance()?.seekToPreviousMediaItem()
-                    ExoplayerManager.getExoPlayerInstance()?.play()
-                }
-
-                lastPlayingMedia = position
-
-            }
-        }
-        binding.viewPager.registerOnPageChangeCallback(cb)
-
+        ExoplayerManager.player.repeatMode = ExoPlayer.REPEAT_MODE_ONE
+        mediaList = shortVideos.filter { !it.clip.isNullOrEmpty() }.map { it.clip!! }
+        ExoplayerManager.setMedia(mediaList)
     }
 
     override fun onDestroy() {
@@ -86,10 +80,66 @@ class MainActivity : BaseActivity(), ReelInterface {
         super.onDestroy()
     }
 
-    override fun onReelClicked(reel: GoogleSearchResultsApiResponse.ShortVideo) {
+    override fun onReelTouchUp() {
+        ExoplayerManager.player.play()
     }
 
-    override fun onReelLikeUnlikeClicked(reel: GoogleSearchResultsApiResponse.ShortVideo) {
+    override fun onReelTouchDown() {
+        ExoplayerManager.player.pause()
+    }
+
+    override fun onNextReel() {
+        if(ExoplayerManager.player.hasNextMediaItem()){
+            ExoplayerManager.player.seekToNextMediaItem()
+        }else{
+            Toast.makeText(this@MainActivity, "This is the Last Video", Toast.LENGTH_SHORT).show()
+        }
+        onCurrentVideoChanged(ExoplayerManager.player.currentMediaItemIndex)
+    }
+
+    override fun onPreviousReel() {
+        if(ExoplayerManager.player.hasPreviousMediaItem()){
+            ExoplayerManager.player.seekToPreviousMediaItem()
+        }else{
+            Toast.makeText(this@MainActivity, "This is the 1st Video", Toast.LENGTH_SHORT).show()
+        }
+        onCurrentVideoChanged(ExoplayerManager.player.currentMediaItemIndex)
+    }
+
+    private fun onCurrentVideoChanged(index: Int) {
+        val url = mediaList[index]
+
+        lifecycleScope.launch(Dispatchers.IO) {
+
+            val isLiked = videosDao.isVideoLiked(url)
+
+            withContext(Dispatchers.Main){
+                binding.btLikeUnlike.setImageResource(
+                    if(isLiked) R.drawable.liked_liked
+                    else R.drawable.like_unliked
+                )
+
+                binding.btLikeUnlike.setOnClickListener {
+                    with
+                    videosDao.insertOrUpdate(
+                        SavedVideo(url = url, isLiked = !isLiked)
+                    )
+                }
+
+            }
+
+
+        }
+
+//        viewModel.isVideoLiked(url){isLiked->
+//
+//
+//
+//
+//        }
+
+
+
     }
 
 

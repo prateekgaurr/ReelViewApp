@@ -10,6 +10,7 @@ interface GoogleApi {
     @GET("search.json")
     suspend fun getSearchResults(
         @Query("q") query: String,
+        @Query("num") num : Int,
         @Query("device") device: String,
         @Query("api_key") apiKey: String
     ): Response<GoogleSearchResultsApiResponse>

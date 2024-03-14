@@ -19,7 +19,7 @@ class VideosRepository @Inject constructor(
         query : String,
     ) = executeNetworkRequest {
         googleApiService.getSearchResults(
-            query = query, device = DEVICE_TYPE, apiKey = API_KEY
+            query = query, device = DEVICE_TYPE, apiKey = API_KEY, num = 50
         )
     }
 

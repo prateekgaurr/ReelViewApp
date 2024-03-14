@@ -8,6 +8,7 @@ import com.prateek.reelapp.data.repository.VideosRepository
 import com.prateek.reelapp.models.GoogleSearchResultsApiResponse
 import com.prateek.reelapp.util.FetchData
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -27,4 +28,21 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    fun isVideoLiked(url: String, callback: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            repo.isVideoLiked(url).collect{
+                if (it is FetchData.Success) {
+                    callback(it.data)
+                } else {
+                    callback(false)
+                }
+            }
+        }
+    }
+
+    fun likeUnlikeVideo(url: String, isLiked : Boolean) {
+        viewModelScope.launch {
+            repo.insertVideoInDb(videoUrl = url, isLiked = isLiked)
+        }
+    }
 }
