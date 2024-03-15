@@ -23,21 +23,6 @@ class VideosRepository @Inject constructor(
         )
     }
 
-    suspend fun insertVideoInDb(
-        videoUrl : String,
-        isLiked : Boolean
-    ) = executeDatabaseOperation {
-        videosDao.insertOrUpdate(
-            SavedVideo(url = videoUrl, isLiked = isLiked)
-        )
-    }
-
-    suspend fun isVideoLiked(
-        videoUrl : String
-    ) = executeDatabaseOperation {
-        videosDao.isVideoLiked(url = videoUrl)
-    }
-
 
 
 }

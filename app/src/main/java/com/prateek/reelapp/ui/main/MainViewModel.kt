@@ -28,21 +28,4 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun isVideoLiked(url: String, callback: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            repo.isVideoLiked(url).collect{
-                if (it is FetchData.Success) {
-                    callback(it.data)
-                } else {
-                    callback(false)
-                }
-            }
-        }
-    }
-
-    fun likeUnlikeVideo(url: String, isLiked : Boolean) {
-        viewModelScope.launch {
-            repo.insertVideoInDb(videoUrl = url, isLiked = isLiked)
-        }
-    }
 }

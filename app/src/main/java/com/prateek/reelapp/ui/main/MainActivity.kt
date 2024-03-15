@@ -1,16 +1,11 @@
 package com.prateek.reelapp.ui.main
 
 import android.os.Bundle
-import android.util.Log
-import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.MediaSource
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.viewpager2.widget.ViewPager2
 import com.prateek.reelapp.R
 import com.prateek.reelapp.data.room.VideosDao
 import com.prateek.reelapp.databinding.ActivityMainBinding
@@ -21,11 +16,12 @@ import com.prateek.reelapp.util.ExoplayerManager
 import com.prateek.reelapp.util.FetchData
 import com.prateek.reelapp.util.alert
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
-import kotlin.math.abs
 
 @AndroidEntryPoint
 class MainActivity : BaseActivity(), ReelInteractionInterface{
@@ -73,6 +69,7 @@ class MainActivity : BaseActivity(), ReelInteractionInterface{
         ExoplayerManager.player.repeatMode = ExoPlayer.REPEAT_MODE_ONE
         mediaList = shortVideos.filter { !it.clip.isNullOrEmpty() }.map { it.clip!! }
         ExoplayerManager.setMedia(mediaList)
+        onCurrentVideoChanged(0)
     }
 
     override fun onDestroy() {
@@ -120,10 +117,13 @@ class MainActivity : BaseActivity(), ReelInteractionInterface{
                 )
 
                 binding.btLikeUnlike.setOnClickListener {
-                    with
-                    videosDao.insertOrUpdate(
-                        SavedVideo(url = url, isLiked = !isLiked)
-                    )
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        updateVideoStatus(mediaList[index], !isLiked){
+                            onCurrentVideoChanged(0)
+
+                        }
+                    }
+
                 }
 
             }
@@ -131,17 +131,27 @@ class MainActivity : BaseActivity(), ReelInteractionInterface{
 
         }
 
-//        viewModel.isVideoLiked(url){isLiked->
-//
-//
-//
-//
-//        }
+    }
 
-
-
+    private fun CoroutineScope.updateVideoStatus(s: String, b: Boolean, callback : ()->Unit) {
+        launch(Dispatchers.IO) {
+            val video = videosDao.getVideoByUrl(s)
+            if(video != null){
+                runBlocking {
+                    videosDao.updateLikeStatus(s, b)
+                }
+                callback()
+            }else{
+                runBlocking {
+                    videosDao.insertOrUpdate(SavedVideo(s, b))
+                }
+                callback()
+            }
+        }
     }
 
 
+
 }
+
 
